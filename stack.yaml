@@ -1,0 +1,176 @@
+########################################################################################################
+#
+#                               Voyzu Framework
+#                               Generic CloudFormation stack
+#                               for SQS Queue and Lambda and trigger
+#                               version 0.8
+#
+########################################################################################################
+
+AWSTemplateFormatVersion: "2010-09-09"
+# Set dynamically at deploy time.  The description as per package.json
+Description: "[Description]"
+
+########################################################################################################
+#
+#                                            Mappings (Constants)
+#
+########################################################################################################
+
+# Mapping values are set dynamically at deploy time
+Mappings:
+  StackMappings:
+    ComponentName:
+      Value: [ComponentName] # Component name as per package.json
+    ComponentType:
+      Value: [ComponentType] # Voyzu Framework Component type as per package.json
+    LambdaMemory:
+      Value: [LambdaMemory] # Lambda Memory size (RAM) in Mb
+    LambdaTimeout:
+      Value: [LambdaTimeout] # Lambda function timeout in seconds
+    S3Bucket:
+      Value: [S3Bucket] # The AWS S3 Bucket where component build artifacts reside
+    S3Key:
+      Value: [S3Key] # The S3 key (file name) of the zipped lambda function
+    S3TemplateUrl:
+      Value: [S3TemplateUrl] # The AWS S3 URL this stack was installed from
+
+Resources:
+
+  ########################################################################################################
+  #
+  #                                            SSM Parameter
+  #
+  ########################################################################################################
+
+  SsmParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name:  !Join [".", [!Ref AWS::StackName,"stack"]]
+      Description: Component deployment version tracking
+      Tier: Standard
+      Type: String
+      Value:  !FindInMap [StackMappings, S3TemplateUrl, Value]
+
+  ########################################################################################################
+  #
+  #                                            log group and subscription filter
+  #
+  ########################################################################################################
+
+  Log:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        !Join [
+          "",
+          [
+            "/aws/lambda/",
+            !Ref AWS::StackName
+          ],
+        ]
+
+  SubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    DependsOn:
+      - Log
+    Properties:
+      LogGroupName:
+        !Join [
+          "",
+          [
+            "/aws/lambda/",
+            !Ref AWS::StackName
+          ],
+        ]
+      FilterPattern: '?"ERROR" ?"Task timed out" ?"ExitError" ?"killed"'
+      DestinationArn:
+        !Join [
+          "",
+          [
+            "arn:aws:lambda:",
+            !Ref "AWS::Region",
+            ":",
+            !Ref "AWS::AccountId",
+            ":function:",
+            "framework-send-log"
+          ],
+        ]
+
+  ########################################################################################################
+  #
+  #                                            lambda
+  #
+  ########################################################################################################
+
+  Lambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName:  !Ref AWS::StackName
+      Role: !Join ["", ["arn:aws:iam::", !Ref "AWS::AccountId", ":role/voyzu"]]
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Description: "[S3Bucket]/[S3Key]"
+      MemorySize: !FindInMap [StackMappings, LambdaMemory, Value]
+      Timeout: !FindInMap [StackMappings, LambdaTimeout, Value]
+      Layers:
+        - !Join ["", ["arn:aws:lambda:us-east-1:", !Ref "AWS::AccountId", ":layer:aws-sdk:1"]]
+      Code:
+        S3Bucket: !FindInMap [StackMappings, S3Bucket, Value]
+        S3Key: !FindInMap [StackMappings, S3Key, Value]
+
+  # set async retries to zero
+  LambdaConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref Lambda
+      MaximumRetryAttempts: 0
+      Qualifier: $LATEST
+
+      
+  ########################################################################################################
+  #
+  #                                SQS
+  #
+  ########################################################################################################
+
+  SqsQueue: 
+    Type: AWS::SQS::Queue
+    Properties: 
+      QueueName: !Join ["",[!FindInMap [StackMappings, ComponentName, Value], ".fifo"]]
+      FifoQueue: true
+      FifoThroughputLimit: perMessageGroupId
+      DeduplicationScope: messageGroup
+      VisibilityTimeout: 400
+      RedrivePolicy: 
+        deadLetterTargetArn: 
+          !Join ["", ["arn:aws:sqs:", !Ref "AWS::Region",":",!Ref "AWS::AccountId",":", "crm-sync-dead-letter.fifo"] ]
+        maxReceiveCount: 1
+
+  ########################################################################################################
+  #
+  #                                Lambda SQS Trigger from SQS Queue
+  #
+  ########################################################################################################
+  
+  LambdaSqsTrigger:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn: Lambda
+    Properties:
+      BatchSize: 1
+      Enabled: true
+      FunctionName: !FindInMap [StackMappings, ComponentName, Value]
+      EventSourceArn:
+         !GetAtt SqsQueue.Arn
+
+########################################################################################################
+#
+#                                Outputs
+#
+########################################################################################################
+
+Outputs:
+
+  S3TemplateUrl:
+    Value:
+      !FindInMap [StackMappings, S3TemplateUrl, Value]

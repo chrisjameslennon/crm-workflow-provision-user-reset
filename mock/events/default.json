@@ -1,0 +1,26 @@
+{
+    "Records": [
+        {
+            "messageId": "9a0069a0-b27e-4197-8138-04edf08f862d",
+            "receiptHandle": "AQEBwOKd85iMsy3U0wufep/Ae8F1AgYdtI65hmUCSTenvbbtotRUQxwgE89yoBlNfGiQTwlu9aw1uAMPA/ACPuyq1Nm9ydJq2CqS0bQzOkR42L20HEdRaYPf3B53ERzH85611cL2pAKrVUvl5CTL1DI4ptx5D6dHUCInjNShMPVXJ20Ol9THFRppealjG6AZchb3TxjKga1JwTUnrNeHMpmwnTnrt82oc54DrcgPfrL5Zgeg9L00DkcOi/yizz5I3dDp2kMyIMTP5rvrZGEKgibbRp0WTXVdkWIVB4u1RSoPrHU=",
+            "body": {
+                "RequestId": "cb649947-9c7c-43a7-a46d-1280a2452194",
+                "AttemptNumber": "1"
+            },
+            "attributes": {
+                "ApproximateReceiveCount": "1",
+                "SentTimestamp": "1687773849686",
+                "SequenceNumber": "18878814179229167616",
+                "MessageGroupId": "default",
+                "SenderId": "AROAYP3NHISC2GHTJBD2I:a21468ae2a0833e2b02d78c76bd06812",
+                "MessageDeduplicationId": "e3668997aca45791ad9b0bf2aae1ecfc5f707b07eef22f1cb727c3b290e2d5e8",
+                "ApproximateFirstReceiveTimestamp": "1687773849686"
+            },
+            "messageAttributes": {},
+            "md5OfBody": "22827017ed5aaa9813a4b4f8d18eb6b9",
+            "eventSource": "aws:sqs",
+            "eventSourceARN": "arn:aws:sqs:us-east-1:583807747205:crm-workflow-provision-user-reset.fifo",
+            "awsRegion": "us-east-1"
+        }
+    ]
+}

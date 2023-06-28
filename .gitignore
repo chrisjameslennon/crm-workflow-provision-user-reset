@@ -1,0 +1,6 @@
+*.env
+*.config
+build/
+node_modules/
+
+
